@@ -28,6 +28,27 @@ static const bd_size_t heap_prog_size = heap_erase_size;
 static const bd_size_t heap_read_size = 256;
 static const bd_size_t num_blocks = 4;
 
+/**
+  * If the flag MBED_TRAP_ERRORS_ENABLED is defined, and the part cannot allocate enough memory for the test, 
+  * the call to memory allocator will fail and mbed-os error function will be called, and we will be stuck in a loop, 
+  * which ideally is good for debugging purposes, but since we are aware of the reasons for failure, and we don't want the CI to get
+  * stuck due to that, we will overwrite "error" function call with a dummy procedure that returns SUCCESS.
+  * Please be wary while using this, as you do not want to use this for cases that can do without it because it will mask some reason failures
+  * due to memory allocation, therefore, if a test has multiple cases and not all of them needs this overwrite, consider splitting the test in two files.
+*/
+
+#if defined(MBED_TRAP_ERRORS_ENABLED) && MBED_TRAP_ERRORS_ENABLED
+void error(const char* format, ...) {
+    (void) format;
+}
+
+//Override the set_error function to trap the errors 
+mbed_error_status_t mbed_error(mbed_error_status_t error_status, const char *error_msg, unsigned int error_value, const char *filename, int line_number) 
+{
+    return MBED_SUCCESS;
+}
+#endif
+
 void functionality_test()
 {
     uint8_t *dummy = new (std::nothrow) uint8_t[num_blocks * heap_erase_size + heap_prog_size];
